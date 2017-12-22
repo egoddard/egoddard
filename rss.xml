@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="assets/xml/rss.xsl" media="all"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Eric Goddard</title><link>https://egoddard.github.io/</link><description>Eric Goddard</description><atom:link href="https://egoddard.github.io/rss.xml" rel="self" type="application/rss+xml"></atom:link><language>en</language><copyright>Contents © 2017 &lt;a href="mailto:egoddard1010@gmail.com"&gt;Eric Goddard&lt;/a&gt; </copyright><lastBuildDate>Fri, 22 Dec 2017 05:24:29 GMT</lastBuildDate><generator>Nikola (getnikola.com)</generator><docs>http://blogs.law.harvard.edu/tech/rss</docs><item><title>Local Django Development with Docker and docker-compose</title><link>https://egoddard.github.io/posts/local-django-development-with-docker-and-docker-compose/</link><dc:creator>Eric Goddard</dc:creator><description>&lt;div&gt;&lt;p&gt;This is the repo for the December 2017 MemPy talk on using Docker Compose for Django development. We'll run through an overview of Docker, Docker Compose, and look at some basic examples. After that, we'll start setting up our Django project, starting with a basic Dockerfile and working our way up to using Docker Compose to spin up three containers: one for our app, one for Redis, and one for Postgres.&lt;/p&gt;
+&lt;p&gt;Github project: &lt;a href="https://github.com/egoddard/mempy-docker-django/"&gt;https://github.com/egoddard/mempy-docker-django/&lt;/a&gt;&lt;/p&gt;
+&lt;h3&gt;Overview&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;What is Docker?&lt;ul&gt;
+&lt;li&gt;Installing Docker&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Using the Docker CLI&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Example 1&lt;/strong&gt;: Hello World&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Example 2&lt;/strong&gt;: Docker processes&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Example 3&lt;/strong&gt;: SciPy up and running with the SciPy stack with one command&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Dockerizing a Django app&lt;ul&gt;
+&lt;li&gt;Basic Dockerfile&lt;/li&gt;
+&lt;li&gt;Problems with the basic config&lt;/li&gt;
+&lt;li&gt;Dockerfile permissions fix&lt;/li&gt;
+&lt;li&gt;Docker Compose Basics&lt;/li&gt;
+&lt;li&gt;Final Project&lt;ul&gt;
+&lt;li&gt;Direnv&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Additional Resources&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;What is Docker&lt;/h3&gt;
+&lt;p&gt;Docker is a tool for running isolated processes or code. It is kind of like a
+virtual machine, but Docker virtualizes the OS instead of the hardware. It uses
+your OS's kernel space and isn't seperated from the host by the hypervisor.
+This allows Docker containers to start up a lot faster (and put a lot less
+strain on your battery!). Using Docker helps keep your environments consistent
+across development and production.&lt;/p&gt;
+&lt;p&gt;For more info about how containers differ from virtual machines, take a look at
+&lt;a href="https://www.docker.com/what-container"&gt;What is a Container&lt;/a&gt; in the Docker
+documentation.&lt;/p&gt;
+&lt;h4&gt;Installing docker&lt;/h4&gt;
+&lt;p&gt;Docker can be installed from the &lt;a href="https://store.docker.com/search?type=edition&amp;amp;offering=community"&gt;Docker Store&lt;/a&gt;.
+If you're installing on a Mac or Windows Machine, &lt;code&gt;docker-compose&lt;/code&gt; is included.
+If you're on linux, check out the &lt;a href="https://docs.docker.com/compose/install/"&gt;Docker Compose Docs&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;If you're on linux, don't use the version that is in your distribution's
+package manager; it is probably old. Add the official Docker repo for
+your distro so you're up to date. You should also view the
+&lt;a href="https://docs.docker.com/engine/installation/linux/linux-postinstall/"&gt;Post-Installation tips for Linux&lt;/a&gt;
+The commands the follow assume you have at least completed the "Manage Docker
+as a non-root user" section.&lt;/p&gt;
+&lt;h3&gt;Using the Docker CLI&lt;/h3&gt;
+&lt;p&gt;The following examples demonstrate creating Docker containers using the Docker
+CLI. You can always run &lt;code&gt;docker&lt;/code&gt; with no additional parameters to get a list
+of all of the available subcommands. Similarly, running &lt;code&gt;docker &amp;lt;subcommand&amp;gt;&lt;/code&gt;
+with no additional parameters will provide help on that subcommand.&lt;/p&gt;
+&lt;h4&gt;&lt;strong&gt;Example 1&lt;/strong&gt;: Hello World&lt;/h4&gt;
+&lt;p&gt;Just like any programming tutorial, Docker contains a Hello World container
+that you can run to make sure your Docker install is working properly:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run hello-world&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;If you see the "Hello from Docker!" message, you should be ready to continue.&lt;/p&gt;
+&lt;h4&gt;&lt;strong&gt;Example 2&lt;/strong&gt;: Docker processes&lt;/h4&gt;
+&lt;p&gt;This example shows how Docker is different from a traditional VM. The command
+below starts a container named mongo (--name mongo), removes it when it is
+stopped (--rm) and runs it in the background (-d):&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run -d --rm --name mongo mongo&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;View the running containers on your system:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container ls&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Execute the command &lt;code&gt;ps aux&lt;/code&gt; in the running container named mongo:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container exec mongo ps aux&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;We can see the same process running on the host machine:
+&lt;code&gt;ps aux | grep mongod&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;If we were using VirtualBox, we wouldn't be able to see the &lt;code&gt;mongod&lt;/code&gt; process
+running from our host container.&lt;/p&gt;
+&lt;h4&gt;&lt;strong&gt;Example 3&lt;/strong&gt;: SciPy up and running with the SciPy stack with one command&lt;/h4&gt;
+&lt;p&gt;&lt;a href="https://github.com/jupyter/docker-stacks/tree/master/scipy-notebook"&gt;https://github.com/jupyter/docker-stacks/tree/master/scipy-notebook&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;WARNING&lt;/strong&gt;: SciPy is not a small project. The container created by the
+following command is several gigabytes in size.&lt;/p&gt;
+&lt;p&gt;This command runs the jupyter/scipy-notebook container interactively (-i) and
+with a pseudo-TTY (-t), removes the container when it is stopped (--rm),
+publishes the container's port 8888 to the host's port 8888 (-p 8888:8888), and
+finally mounts a volume into the container so that files created in the container
+are persistent (-v $(pwd):/home/jovyan/work).&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run -it --rm -p 8888:8888 -v $(pwd):/home/jovyan/work jupyter/scipy-notebook&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Explanations for the arguments are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;-i&lt;/strong&gt;: Run the container interactively&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;-t&lt;/strong&gt;: Open a pseudo-TTY in the container&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;-p 8888:8888&lt;/strong&gt;: Publish the container's port 8888 to the host's port 8888. Since we want to be able to access the jupyter notebook server from our host machine's web browser, we have to explicitly declare the port mapping. With this option passed to &lt;code&gt;run&lt;/code&gt;, we can navigate to &lt;code&gt;localhost:8888&lt;/code&gt; on our host machine, and the request will be forwarded on to the container's port 8888.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;-v $(pwd):/home/jovyan/work&lt;/strong&gt;: This mounts a volume from the host container into the container at the specified location. Here, we're declaring that our current working directory should be mounted in the container at &lt;code&gt;/home/jovyan/work&lt;/code&gt;. With the volume mounted, any changes we make to files on our host will be accessible inside the container in the mounted directory and vice versa. Also, when the container is stopped our data will be persisted, since it was created on the host.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As you can see, there are potentially many options that can be passed to the
+&lt;code&gt;docker container run&lt;/code&gt; command. The 
+&lt;a href="https://docs.docker.com/engine/reference/commandline/container_run/"&gt;docker container run&lt;/a&gt;
+documentation lists all of the arguments. &lt;/p&gt;
+&lt;p&gt;In example 2, the container we run is just &lt;code&gt;mongo&lt;/code&gt;, while in example 3
+it is &lt;code&gt;jupyter/scipy-notebook&lt;/code&gt;. The containers are fetched from
+&lt;a href="https://hub.docker.com"&gt;Docker Hub&lt;/a&gt;, the official Docker container registry.
+Docker Hub contains many images, some contributed by Docker (official images)
+and others added by the community. You can differentiate official images from
+community images based on the name: official images won't have a prefix.
+Containers from other organizations or individuals will include their name as
+part of the container name.&lt;/p&gt;
+&lt;h3&gt;Dockerizing a Django app&lt;/h3&gt;
+&lt;h4&gt;Basic Dockerfile&lt;/h4&gt;
+&lt;p&gt;So far we've been running containers from Docker Hub, unmodified. We can also
+use the container images on Docker Hub as a base for creating our own
+containers. To do this, we create a &lt;code&gt;Dockerfile&lt;/code&gt; that specifies the Docker Hub
+image to use as a base, and then we provide some additional commands. Once our
+Dockerfile is ready, we can build it.&lt;/p&gt;
+&lt;p&gt;For the remaining examples to work, you'll need to clone or download the project
+repo from Github:
+&lt;a href="https://github.com/egoddard/mempy-docker-django"&gt;https://github.com/egoddard/mempy-docker-django&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;In the &lt;code&gt;1-basic-dockerfile&lt;/code&gt; folder is a &lt;code&gt;Dockerfile&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;FROM&lt;/span&gt;&lt;span class="s"&gt; python:3&lt;/span&gt;
+&lt;span class="k"&gt;ENV&lt;/span&gt;&lt;span class="s"&gt; PYTHONBUFFERED 1&lt;/span&gt;
+
+&lt;span class="c"&gt;# App setup&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; mkdir /app
+&lt;span class="k"&gt;WORKDIR&lt;/span&gt;&lt;span class="s"&gt; /app&lt;/span&gt;
+
+&lt;span class="k"&gt;ADD&lt;/span&gt;&lt;span class="s"&gt; requirements.txt /app/&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; pip install -r requirements.txt
+&lt;span class="k"&gt;ADD&lt;/span&gt;&lt;span class="s"&gt; . /app/&lt;/span&gt;
+
+&lt;span class="k"&gt;CMD&lt;/span&gt;&lt;span class="s"&gt; "/bin/bash"&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;This dockerfile contains a few of the basic commands you can use in a dockerfile.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;FROM&lt;/strong&gt;: Every dokerfile begins with this line. It tells Docker what image from Dockerhub to use as the base. All the commands that follow will be built on top of this image.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ENV&lt;/strong&gt;: Used to set environment variables insides the container.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;RUN&lt;/strong&gt;: Run a command inside the container. This directive is usually followed by a bash command.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;WORKDIR&lt;/strong&gt;: Set the working directory inside the container. Any commands that follow this will be run from this directory.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ADD&lt;/strong&gt;: Adds the source file from the container into the directory provided in the container.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CMD&lt;/strong&gt;: The default command that the container should execute when it is run. This is different than the &lt;strong&gt;RUN&lt;/strong&gt; directive, which is used during the build phase.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;a href="https://docs.docker.com/engine/reference/builder/"&gt;See the Dockerfile docs&lt;/a&gt;
+for more in depth explanations of these and other directives that you can use
+in the Dockerfile.&lt;/p&gt;
+&lt;p&gt;Docker takes the commands in a Dockerfile and builds up the container in 
+layers, starting with the &lt;code&gt;FROM&lt;/code&gt; directive. each directive creates a new image
+that Docker uses to serve the final container. All of the layers are 'joined'
+through the union file system. One of the benefits of this is that only the
+parts of your container that change between builds are rebuilt, so while the
+first build may take awhile (looking at you SciPy notebook), subsequent 
+updates are fast. For more info about how images and layers work,
+see &lt;a href="https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/"&gt;About images, containers, and storage drivers&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Build the container and then run it with the following commands:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker build -t django-basic .&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This command sets the tag (-t), or name, of our new image to &lt;code&gt;django-basic&lt;/code&gt;.
+The &lt;code&gt;.&lt;/code&gt; refers to the current directory. If a Dockerfile isn't passed to the
+&lt;code&gt;build command&lt;/code&gt;, it will look for a &lt;code&gt;Dockerfile&lt;/code&gt; in the provided directory.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run -it --rm django-basic&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You should have a shell inside the container. Try creating a Django project:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;django-admin startproject docker .&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;After creating the djang project, run &lt;code&gt;ls -l&lt;/code&gt; inside the container. Notice that
+the files are owned by root. This is not ideal, since we don't want to have to
+&lt;code&gt;chown&lt;/code&gt; our files every time we create a file within the container.&lt;/p&gt;
+&lt;p&gt;In another terminal window, &lt;code&gt;cd&lt;/code&gt; into the folder containing the &lt;code&gt;Dockerfile&lt;/code&gt;
+and run &lt;code&gt;ls&lt;/code&gt;. Since we didn't map a volume (-v) when we started the container,
+the files we've created so far are only inside the container. When the 
+container is stopped the files will be gone.&lt;/p&gt;
+&lt;p&gt;You can also start up the development server with 
+&lt;code&gt;python manage.py runserver&lt;/code&gt;. However, if you try accessing the Django app
+from your browser, you'll get an error because we didn't publish the ports (-p).&lt;/p&gt;
+&lt;p&gt;Use &lt;code&gt;ctrl+c&lt;/code&gt; to kill the server and type &lt;code&gt;exit&lt;/code&gt; to leave the container.&lt;/p&gt;
+&lt;h4&gt;Problems with the basic config&lt;/h4&gt;
+&lt;p&gt;While we have a basic Django app served from a Docker container, we have some
+issues to fix:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;We can't access the server from our host machine&lt;/li&gt;
+&lt;li&gt;Our project disappeared when we killed the container &lt;/li&gt;
+&lt;li&gt;Files created inside the container are owned by root (&lt;em&gt;may not apply&lt;/em&gt;
+   &lt;em&gt;to Windows and Linux environments&lt;/em&gt;)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The first two issues can be corrected by passing some additional parameters in
+to our &lt;code&gt;docker container run&lt;/code&gt; command:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run -it -p 8000:8000 -v $(pwd):/app --rm django-basic&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This command:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;binds ports (-p) 8000 in the container to 8000 on the host&lt;/li&gt;
+&lt;li&gt;creates a volume (-v) for persistent storage. Our current working directory
+    on the host will be mapped to &lt;code&gt;/app&lt;/code&gt; in the container.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Try creating another django project in the container and then running
+&lt;code&gt;python manage.py runserver 0.0.0.0:8000&lt;/code&gt;. Once the development server starts,
+you should be able to visit &lt;code&gt;localhost:8000&lt;/code&gt; in your browser and see the
+Django 2.0 start page. When you're finished playing in the container, type
+&lt;code&gt;exit&lt;/code&gt; to leave the bash prompt. The container will automatically be removed
+since we passed the &lt;code&gt;--rm&lt;/code&gt; argument to &lt;code&gt;docker container run&lt;/code&gt;.&lt;/p&gt;
+&lt;h4&gt;Dockerfile permissions fix&lt;/h4&gt;
+&lt;p&gt;If you're using Docker for Windows/Mac, you may not have this problem. On
+linux, we need our container user to run as a normal user, which requires
+a few additions to our Dockerfile. First, we need to include 
+&lt;a href="https://github.com/tianon/gosu"&gt;gosu&lt;/a&gt; in our container, then we configure an
+&lt;code&gt;ENTRYPOINT&lt;/code&gt; script that sets up our non-root user. Any commands we specify in
+the Dockerfile (via &lt;code&gt;CMD&lt;/code&gt;) or that we pass in to the container during the
+&lt;code&gt;docker container run&lt;/code&gt; command will be run after the &lt;code&gt;ENTRYPOINT&lt;/code&gt; script.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;cd&lt;/code&gt; to the &lt;code&gt;2-dockerfile-with-entrypoint&lt;/code&gt; folder. Inside is a new Dockerfile:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;FROM&lt;/span&gt;&lt;span class="s"&gt; python:3&lt;/span&gt;
+&lt;span class="k"&gt;ENV&lt;/span&gt;&lt;span class="s"&gt; PYTHONBUFFERED 1&lt;/span&gt;
+&lt;span class="k"&gt;ENV&lt;/span&gt;&lt;span class="s"&gt; GOSU_VERSION 1.10&lt;/span&gt;
+
+&lt;span class="c"&gt;# Hardcode the user id to assign the non-root user for now&lt;/span&gt;
+&lt;span class="c"&gt;# We'll fix this when we get to docker-compose&lt;/span&gt;
+&lt;span class="k"&gt;ENV&lt;/span&gt;&lt;span class="s"&gt; USER_ID 1000&lt;/span&gt;
+
+&lt;span class="c"&gt;# Use &amp;amp;&amp;amp; to run all of these commands as a single layer&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; apt-get update &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; apt-get install -y curl &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; rm -rf /var/lib/apt/lists/*
+
+&lt;span class="c"&gt;# Install gosu so we can create a non-root user&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; curl -o /usr/local/bin/gosu -SL &lt;span class="s2"&gt;"https://github.com/tianon/gosu/releases/download/&lt;/span&gt;&lt;span class="nv"&gt;$GOSU_VERSION&lt;/span&gt;&lt;span class="s2"&gt;/gosu-&lt;/span&gt;&lt;span class="k"&gt;$(&lt;/span&gt;dpkg --print-architecture&lt;span class="k"&gt;)&lt;/span&gt;&lt;span class="s2"&gt;"&lt;/span&gt; &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; curl -o /usr/local/bin/gosu.asc -SL &lt;span class="s2"&gt;"https://github.com/tianon/gosu/releases/download/&lt;/span&gt;&lt;span class="nv"&gt;$GOSU_VERSION&lt;/span&gt;&lt;span class="s2"&gt;/gosu-&lt;/span&gt;&lt;span class="k"&gt;$(&lt;/span&gt;dpkg --print-architecture&lt;span class="k"&gt;)&lt;/span&gt;&lt;span class="s2"&gt;.asc"&lt;/span&gt; &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; gpg --verify /usr/local/bin/gosu.asc &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; rm /usr/local/bin/gosu.asc &lt;span class="se"&gt;\&lt;/span&gt;
+    &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; chmod +x /usr/local/bin/gosu
+
+&lt;span class="c"&gt;# Setup an entrypoint script to create the non-root user&lt;/span&gt;
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+&lt;span class="c"&gt;# App setup&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; mkdir /app 
+&lt;span class="k"&gt;WORKDIR&lt;/span&gt;&lt;span class="s"&gt; /app&lt;/span&gt;
+
+&lt;span class="k"&gt;ADD&lt;/span&gt;&lt;span class="s"&gt; requirements.txt /app/&lt;/span&gt;
+&lt;span class="k"&gt;RUN&lt;/span&gt; pip install -r requirements.txt
+
+&lt;span class="k"&gt;ENTRYPOINT&lt;/span&gt;&lt;span class="s"&gt; ["/usr/local/bin/entrypoint.sh"]&lt;/span&gt;
+
+&lt;span class="k"&gt;CMD&lt;/span&gt;&lt;span class="s"&gt; ["python", "manage.py", "runserver", "0.0.0.0:8000"]&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;In this Dockerfile, we have the new &lt;code&gt;ENTRYPOINT&lt;/code&gt; directive, and we've set the
+default &lt;code&gt;CMD&lt;/code&gt; so that it starts the development server. The &lt;code&gt;entrypoint.sh&lt;/code&gt; script:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="ch"&gt;#!/bin/bash&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Default to 1000 if the USER_ID env var isn not set&lt;/span&gt;
+&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt; -z &lt;span class="nv"&gt;$USER_ID&lt;/span&gt; &lt;span class="o"&gt;]&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="k"&gt;then&lt;/span&gt;
+  &lt;span class="nv"&gt;USER_ID&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;1000&lt;/span&gt;
+&lt;span class="k"&gt;fi&lt;/span&gt;
+
+useradd --shell /bin/bash -u &lt;span class="nv"&gt;$USER_ID&lt;/span&gt; -o -c &lt;span class="s2"&gt;""&lt;/span&gt; -m user
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;HOME&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;/home/user
+
+&lt;span class="c1"&gt;# Docker created the /app dir as root, so we need to chown it&lt;/span&gt;
+chown -R user:user /app
+
+&lt;span class="c1"&gt;# Run the gosu command as our new user. Any commands sent to&lt;/span&gt;
+&lt;span class="c1"&gt;# the container (from the CMD directive or via CLI) will be &lt;/span&gt;
+&lt;span class="c1"&gt;# filled in at the "$@" and run as the non-root user&lt;/span&gt;
+&lt;span class="nb"&gt;exec&lt;/span&gt; /usr/local/bin/gosu user &lt;span class="s2"&gt;"&lt;/span&gt;&lt;span class="nv"&gt;$@&lt;/span&gt;&lt;span class="s2"&gt;"&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;Build the container and then run &lt;code&gt;bash&lt;/code&gt; in the container, overriding the default command:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker build -t django-permissions .&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run -it --rm -p 8000:8000 -v $(pwd):/app django-permissions bash&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You should have a shell inside the container. Try creating a Django project:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;django-admin startproject docker .&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Now type &lt;code&gt;exit&lt;/code&gt; to leave the container. If you run &lt;code&gt;ls -l&lt;/code&gt; in your host's
+terminal, the django files should be owned by your host user. Now run the
+&lt;code&gt;django-permissions&lt;/code&gt; container with no command. The development server should
+start:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker container run --rm -p 8000:8000: -v $(pwd):/app django-permissions&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Visiting &lt;code&gt;localhost:8000&lt;/code&gt; in your host's browser should show the Django 2.0
+start page. It works! That's a lot of command to run and parameters to 
+remember everytime you want to start your development environment though. we
+can simplify this setup and make it more reproducible with Docker Compose.&lt;/p&gt;
+&lt;h4&gt;Docker Compose Basics&lt;/h4&gt;
+&lt;p&gt;Docker compose is a tool for defining and running multiple containers. It is
+used primarily for local development and CI workflows, however recent versions
+can also be used in production with Docker Swarm. Just like Docker and the
+&lt;code&gt;Dockerfile&lt;/code&gt;, &lt;code&gt;docker-compose&lt;/code&gt; allows you to create a &lt;code&gt;docker-compose.yml&lt;/code&gt;
+file that defines a number of services (containers) and their configuration.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;cd&lt;/code&gt; to the &lt;code&gt;3-docker-compose&lt;/code&gt; folder. We still have our &lt;code&gt;Dockerfile&lt;/code&gt;,
+&lt;code&gt;entrypoint.sh&lt;/code&gt;, and &lt;code&gt;requirements.txt&lt;/code&gt;, but there is also a new file:
+&lt;code&gt;docker-compose.yml&lt;/code&gt;. We use this file to define the containers we want to
+start, set their configuration options such as volumes, exposed ports, and
+environment variables, and also set up the relationships between containers:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;version&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'3'&lt;/span&gt;
+
+&lt;span class="l l-Scalar l-Scalar-Plain"&gt;services&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;postgres&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;image&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;postgres:9.6&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;ports&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="s"&gt;"5432:5432"&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;environment&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;PGDATA&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'/var/lib/postgresql/data/pgdata'&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_DB&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'my_django_app'&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_USER&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'my_django_app'&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_PASSWORD&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'mysecretpassword'&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; 
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django-data:/var/lib/postgresql/data/pgdata&lt;/span&gt;
+
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;image&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;docker-django&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;build&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;.&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;working_dir&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;/app&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;command&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;python manage.py runserver 0.0.0.0:8000&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;env_file&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django_env&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;.:/app&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;ports&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="s"&gt;"8000:8000"&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;depends_on&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;postgres&lt;/span&gt;
+
+&lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django-data&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;Each value under the &lt;code&gt;services&lt;/code&gt; key is a container. This compose file sets up
+two containers: &lt;code&gt;postgres&lt;/code&gt; and &lt;code&gt;django&lt;/code&gt;. The &lt;code&gt;postgres&lt;/code&gt; container pulls the
+official &lt;code&gt;postgres&lt;/code&gt; image from Dockerhub. We publish container port 5432 to
+host port 5432, just in case we want to use &lt;code&gt;psql&lt;/code&gt; to inspect our database.
+Then we configure environment variables and create a volume so that the
+database files are stored on our host for persistence. If the &lt;code&gt;django-data&lt;/code&gt;
+volume doesn't exist, &lt;code&gt;docker-compose&lt;/code&gt; will create it.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;django&lt;/code&gt; container is a little more interesting. We configure
+&lt;code&gt;docker-compose&lt;/code&gt; to build an image for the &lt;code&gt;django&lt;/code&gt; container named
+&lt;code&gt;docker-django&lt;/code&gt; using the Dockerfile in the current directory (&lt;code&gt;build: .&lt;/code&gt;).
+The default command can be set here. It can be different from the one set
+in the &lt;code&gt;Dockerfile&lt;/code&gt;. Instead of listing the environment variables directly, we
+can point &lt;code&gt;docker-compose&lt;/code&gt; at a file containing all the environment variables
+that we need in our container. We also have a volume setup, but this time we're
+mapping the current directory into the &lt;code&gt;/app&lt;/code&gt; folder. This will allow our
+container to see changes in real time so it can restart the development server
+whenever a change is detected. Finally, we publish port 8000 to the host so that
+we can connect to the app in our browser, and then we let Docker know that that
+the &lt;code&gt;django&lt;/code&gt; container depends on &lt;code&gt;postgres&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;You can see that there are several parameters that map to some of the options
+we passed to &lt;code&gt;docker container run&lt;/code&gt;. With the &lt;code&gt;docker-compose.yml&lt;/code&gt; file
+configured, running &lt;code&gt;docker-compuse up&lt;/code&gt; starts up both our &lt;code&gt;django&lt;/code&gt; (serving code
+from the current directory) and &lt;code&gt;postgres&lt;/code&gt; database containers defined in the
+compose file.&lt;/p&gt;
+&lt;p&gt;Just like with Docker, we need to build the container images before we run them
+with &lt;code&gt;docker-compose&lt;/code&gt;. To build all of the containers defined in the compose
+file, execute:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose build&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Anytime you make changes to the Dockerfile or other files that the container
+depends on, such as &lt;code&gt;entrypoint.sh&lt;/code&gt; or &lt;code&gt;requirements.txt&lt;/code&gt;, you should re-run
+&lt;code&gt;docker-compose build&lt;/code&gt;. Creating new files for Django or running migrations
+does &lt;strong&gt;not&lt;/strong&gt; require a rebuild, since those file's aren't used in the
+container's build phase.&lt;/p&gt;
+&lt;p&gt;After building the container, start them up:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose up&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You should see the logs of the postgres container getting started, and you may
+also see an error about &lt;code&gt;manage.py&lt;/code&gt; not being found if you haven't created a
+Django project yet. Before we do that, lets start a &lt;code&gt;bash&lt;/code&gt; prompt and check
+out container networking.&lt;/p&gt;
+&lt;p&gt;Arbitrary commands can be run in the container with
+&lt;code&gt;docker-compose run &amp;lt;service&amp;gt; &amp;lt;cmd&amp;gt;&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose run django bash&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose&lt;/code&gt; automatically creates a network for the services listed in a
+&lt;code&gt;docker-compose.yml&lt;/code&gt; file. The network is configured to use the service name
+for DNS. From the bash prompt in the &lt;code&gt;django&lt;/code&gt; container, we can ping the
+postgres container using &lt;code&gt;ping postgres&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Use &lt;code&gt;exit&lt;/code&gt; to leave the container bash prompt, followed by
+&lt;code&gt;docker-compose down&lt;/code&gt; to shut down all of the services specified in the compose
+file.&lt;/p&gt;
+&lt;p&gt;We can also use the &lt;code&gt;docker-compose run&lt;/code&gt; command to execute one-off commands,
+such as starting a Django project:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose run django django-admin startproject docker .&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Try starting the containers again, this time using just &lt;code&gt;docker-compose run django&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The development server should be running, but navigating &lt;code&gt;localhost:8000&lt;/code&gt;
+throws an error. Even though we've mapped the ports in &lt;code&gt;docker-compose.yml&lt;/code&gt;,
+the &lt;code&gt;docker-compose run&lt;/code&gt; command ignores port mappings so that it doesn't
+conflict with &lt;code&gt;docker-compose up&lt;/code&gt;. If the ports are already mapped, bringing
+the containers up will fail. You can pass the &lt;code&gt;--service-ports&lt;/code&gt; parameter in to
+&lt;code&gt;docker-compose run&lt;/code&gt; to explicitly map the ports:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose run --service-ports django&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Go ahead and use &lt;code&gt;docker-compose down&lt;/code&gt; to stop all of the containers, and then run &lt;code&gt;docker-compose up&lt;/code&gt;. you should see the postgres and django logs, and be able to access the Django app at &lt;code&gt;localhost:8000&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;If you can do the same thing with &lt;code&gt;docker-compose up&lt;/code&gt;
+and docker-compose run --service-ports&lt;code&gt;, why are there two commands, and when do
+you use each? Use&lt;/code&gt;docker-compose run --service-ports&lt;code&gt;when you need to do
+interactive debugging. For example, if you use&lt;/code&gt;ipdb&lt;code&gt;and you add an&lt;/code&gt;ipdb.set_trace()&lt;code&gt;somewhere in your code, when that breakpoint is hit you will
+not be able to access an interactive ipython shell if you launched your containers
+with&lt;/code&gt;docker-compose up&lt;code&gt;. It is not designed for interactivity. Use&lt;/code&gt;docker-compose run --service-ports` instead.&lt;/p&gt;
+&lt;p&gt;We can take advantage of this setup and some environment variables to use
+&lt;code&gt;docker-compose&lt;/code&gt; to closely mimic our production environment. For our final
+project we'll setup a Django Rest Framework API to serve some spatial data
+using &lt;code&gt;docker-compose&lt;/code&gt;.&lt;/p&gt;
+&lt;h4&gt;Final Project&lt;/h4&gt;
+&lt;p&gt;The app in this project is a dockerized version of
+https://github.com/egoddard/mempy-drf-gis. For more info about that project,
+visit the repo. You should be able to follow along in that repo if you want
+more info about that project, just skip any steps that mention &lt;code&gt;vagrant&lt;/code&gt;,
+&lt;code&gt;pip&lt;/code&gt;, &lt;code&gt;mkvirtualenv&lt;/code&gt; or steps involving database creation; all of that is
+handled by Docker. Unlike the other examples so far, this example has a
+complete Django project that we'll walk through to see how it is configured for
+Docker.&lt;/p&gt;
+&lt;h5&gt;&lt;a href="https://direnv.net/"&gt;Direnv&lt;/a&gt;&lt;/h5&gt;
+&lt;p&gt;In the last example's &lt;code&gt;docker-compose.yml&lt;/code&gt;, you may have noticed we had
+passwords and database urls, etc. in our compose file, which isn't good because
+we want to commit that to version control. A better option is to load those
+values from the environment. We can use &lt;code&gt;direnv&lt;/code&gt; to automatically load/unload
+environment variables when we enter directories, which we can reference in our
+&lt;code&gt;docker-compose.yml&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;NOTE&lt;/strong&gt;: I am not sure if this direnv/docker setup works with Windows. I'm
+pretty sure it works with Mac, and I know it works in Linux. If you get errors,
+you may have to change the following docker-compose file to use the &lt;code&gt;env:&lt;/code&gt; as
+in the &lt;code&gt;django&lt;/code&gt; container in the previous docker-compose example.&lt;/p&gt;
+&lt;p&gt;To make sure your environment variables are never committed to version control,
+create a global &lt;code&gt;gitignore&lt;/code&gt; file that contains &lt;code&gt;.envrc&lt;/code&gt;, the file &lt;code&gt;direnv&lt;/code&gt;
+looks for in a directory:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;touch ~/.gitignore_global
+git config --global core.excludesfile ~/.gitignore_global
+&lt;span class="nb"&gt;echo&lt;/span&gt; &lt;span class="s2"&gt;".envrc"&lt;/span&gt; &amp;gt;&amp;gt; ~/.gitignore_global
+&lt;/pre&gt;
+
+
+&lt;p&gt;After creating the ~/.gitignore_global file (if you so choose), &lt;code&gt;cd&lt;/code&gt; into the
+&lt;code&gt;4-final-project&lt;/code&gt; folder. Create a &lt;code&gt;.envrc&lt;/code&gt; file with the following content:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;POSTGRES_DB&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;osm
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;POSTGRES_USER&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;osm
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;POSTGRES_PASSWORD&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;mysecretpassword
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;DATABASE_URL&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;postgis://osm:mysecretpassword@postgres:5432/osm
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;SECRET_KEY&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;'super_secret_key'&lt;/span&gt;
+&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;DEBUG&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;True
+&lt;/pre&gt;
+
+
+&lt;p&gt;After creating a &lt;code&gt;.envrc&lt;/code&gt; file in a directory, any time you make changes to the
+file you need to run &lt;code&gt;direnv allow&lt;/code&gt; while in the directory before the file will
+be loaded into your environment.&lt;/p&gt;
+&lt;p&gt;We can reference these variables directly in our&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="l l-Scalar l-Scalar-Plain"&gt;version&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'3'&lt;/span&gt;
+
+&lt;span class="l l-Scalar l-Scalar-Plain"&gt;services&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;postgres&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;image&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;mdillon/postgis:9.6-alpine&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;ports&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="s"&gt;"5432:5432"&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;environment&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;PGDATA&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="s"&gt;'/var/lib/postgresql/data/pgdata'&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_DB&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$POSTGRES_DB&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_USER&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$POSTGRES_USER&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;POSTGRES_PASSWORD&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$POSTGRES_PASSWORD&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; 
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django-data:/var/lib/postgresql/data/pgdata&lt;/span&gt;
+
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;image&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;docker-django&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;build&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;.&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;working_dir&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;/app&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;command&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;python manage.py runserver 0.0.0.0:8000&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;environment&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;DATABASE_URL&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$DATABASE_URL&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;SECRET_KEY&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$SECRET_KEY&lt;/span&gt;
+      &lt;span class="l l-Scalar l-Scalar-Plain"&gt;DEBUG&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;$DEBUG&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;.:/app&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;ports&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="s"&gt;"8000:8000"&lt;/span&gt;
+    &lt;span class="l l-Scalar l-Scalar-Plain"&gt;depends_on&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+      &lt;span class="p p-Indicator"&gt;-&lt;/span&gt; &lt;span class="l l-Scalar l-Scalar-Plain"&gt;postgres&lt;/span&gt;
+
+&lt;span class="l l-Scalar l-Scalar-Plain"&gt;volumes&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+  &lt;span class="l l-Scalar l-Scalar-Plain"&gt;django-data&lt;/span&gt;&lt;span class="p p-Indicator"&gt;:&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;This project's &lt;code&gt;docker-compose.yml&lt;/code&gt; file is basically the same as our previous
+version, but I've changed the image used to build the &lt;code&gt;postgres&lt;/code&gt; container.
+Since we're working with spatial data, we want our postgres database to include
+the &lt;a href="http://www.postgis.net"&gt;PostGIS&lt;/a&gt; extension. PostGIS adds spatial data
+column types and includes many spatial functions we can take advantage of, such 
+as finding distances between locations, finding all the points within a
+boundary, calculating intersections of features, and many more.&lt;/p&gt;
+&lt;p&gt;The official &lt;code&gt;postgres&lt;/code&gt; container doesn't have postgis, but there are other
+containers that build on the official container to add extra features. We'll
+use one of these to get postgis support.&lt;/p&gt;
+&lt;p&gt;With the variables in the container, we can update
+&lt;code&gt;settings.py&lt;/code&gt; to use
+&lt;a href="https://github.com/joke2k/django-environ"&gt;djang-environ&lt;/a&gt; to configure our 
+database, secret key, and debug settings from environment varibales.&lt;/p&gt;
+&lt;p&gt;You can view the full &lt;code&gt;settings.py&lt;/code&gt; in the Github project, but the changes we
+need to make involve importing &lt;code&gt;environ&lt;/code&gt; and populating some of the required
+configuration constants with values from our environment:&lt;/p&gt;
+&lt;pre class="code literal-block"&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;os&lt;/span&gt;
+&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;environ&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Build paths inside the project like this: os.path.join(BASE_DIR, ...)&lt;/span&gt;
+&lt;span class="n"&gt;BASE_DIR&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;os&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dirname&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;os&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dirname&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;os&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;abspath&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="vm"&gt;__file__&lt;/span&gt;&lt;span class="p"&gt;)))&lt;/span&gt;
+&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;environ&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Path&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;BASE_DIR&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="n"&gt;env&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;environ&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Env&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="n"&gt;SITE_ROOT&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;root&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="n"&gt;ALLOWED_HOSTS&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[]&lt;/span&gt;
+&lt;span class="c1"&gt;# SECURITY WARNING: don't run with debug turned on in production!&lt;/span&gt;
+&lt;span class="n"&gt;DEBUG&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;env&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;'DEBUG'&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;TEMPLATE_DEBUG&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;DEBUG&lt;/span&gt;
+
+&lt;span class="n"&gt;SECRET_KEY&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;env&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;'SECRET_KEY'&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="n"&gt;DATABASES&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+    &lt;span class="s1"&gt;'default'&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;env&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;db&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;
+
+
+&lt;p&gt;Build the containers with &lt;code&gt;docker-compose build&lt;/code&gt;, and then run them with
+&lt;code&gt;docker-compose up&lt;/code&gt;. The Django development server will automatically start.&lt;/p&gt;
+&lt;p&gt;In another terminal, run
+&lt;code&gt;docker-compose run django python manage.py makemigrations osm&lt;/code&gt; to
+generate the migration for the &lt;code&gt;osm&lt;/code&gt; app. The &lt;code&gt;osm&lt;/code&gt; app contains a model,
+view, and serializer. They contain standard
+&lt;a href="http://www.django-rest-framework.org/"&gt;Django Rest Framework&lt;/a&gt; features,
+except the serializer. The serializer also uses &lt;a href="https://github.com/djangonauts/django-rest-framework-gis"&gt;DRF-GIS&lt;/a&gt;.
+DRF-GIS, like PostGIS, adds spatial serializers and methods to Django Rest
+Framework. Remember, you can read more about the
+&lt;a href="https://github.com/egoddard/mempy-drf-gis"&gt;example project&lt;/a&gt; if you're
+interested.&lt;/p&gt;
+&lt;p&gt;Run &lt;code&gt;docker-compose run django python manage.py migrate&lt;/code&gt; to apply all migrations.&lt;/p&gt;
+&lt;p&gt;Finally, to load the data from the &lt;code&gt;osm_amenities.json&lt;/code&gt; fixtures, run:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;docker-compose run django python manage.py loaddata osm_amenities.json&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Visit &lt;code&gt;localhost:8000&lt;/code&gt; in your browser to see the browsable API.&lt;/p&gt;
+&lt;h4&gt;Additional Resources&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://docs.docker.com/get-started/"&gt;Getting started with Docker&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://labs.play-with-docker.com/"&gt;Play with Docker&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://docs.docker.com/compose/django/"&gt;Quickstart with Compose and Django&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://docs.docker.com/engine/reference/builder/"&gt;Dockerfile Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://docs.docker.com/compose/"&gt;Compose Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="http://django-rest-framework.org/"&gt;Django Rest Framework&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/djangonauts/django-rest-framework-gis"&gt;DRF-GIS&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/div&gt;</description><category>django</category><category>docker</category><guid>https://egoddard.github.io/posts/local-django-development-with-docker-and-docker-compose/</guid><pubDate>Wed, 20 Dec 2017 04:21:11 GMT</pubDate></item></channel></rss>
